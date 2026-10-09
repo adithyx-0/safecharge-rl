@@ -1,0 +1,13 @@
+# Data / split decisions. CHOSEN BY CLAUDE under the user's delegation on 2026-10-04 (reasons in docs/PROJECT_LOG.md).
+# Not in the submitted design (design: summer tariff, stable pre-2020 period, chronological split): revisit with the user if wanted.
+site: caltech
+exclude_stations:            # Caltech station 2-39-81-4550 is a ~46 kW fast charger, not a 6.656 kW port (54 modelled ports)
+  caltech: ["2-39-81-4550"]
+  jpl: []
+midnight: drop               # sessions crossing local midnight are dropped (6.3% Caltech, 1.45% JPL)
+tariff: summer               # SCE TOU-EV-4 summer weekday curve applied to ALL weekdays (a controlled assumption, not the real Jun-Sep-only tariff)
+splits:                      # inclusive local dates; chronological, one pricing regime, pre-COVID
+  train: ["2019-01-01", "2019-08-31"]
+  val:   ["2019-09-01", "2019-10-31"]
+  test:  ["2019-11-01", "2020-02-29"]
+  post:  ["2021-01-01", "2021-09-30"]

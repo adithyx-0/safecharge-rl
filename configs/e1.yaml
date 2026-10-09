@@ -1,0 +1,33 @@
+# E1: PPO-Lagrangian trained and tested under truthful reports (M0), Caltech, kappa = 0.2.  FINAL main configuration (chosen on VALIDATION, seed 0).
+# Design-faithful architecture (mean-pool Deep Sets, uniform-cut projection) + two additions that are NOT in the submitted design and must be stated as such:
+#   (1) behaviour-cloning warm start from LLF + 30-update critic warm-up  (cold start was dominated: val U 2.5%, 0.200 $/kWh after 1500 updates)
+#   (2) dual-step clipping + lambda cap, gamma 0.999 / GAE 0.97 (design says gamma = 0.99; CLAUDE.md asks to ablate it)
+name: e1_m0
+base: configs/base.yaml
+derived: configs/derived_caltech_kappa0.2.yaml
+agent:
+  hid: 64
+  use_count: true          # occupied-port count appended to the pooled context (set false for the literal design)
+  pool: mean               # design: masked mean-pool. ablations: meanmax, attn
+  lr: 0.0003
+  lr_final: 0.1            # linear decay to 10% of lr
+  n_envs: 48               # episodes (days) per update
+  epochs: 10
+  minibatch: 256
+  clip: 0.2
+  gamma: 0.999
+  gae_lambda: 0.97
+  ent_coef: 0.001
+  target_kl: 0.02
+  dual_lr: 0.05            # on clipped relative violation J/d - 1
+  dual_clip: [-1, 1]
+  lam_max: 10.0
+  j_ema: 0.7
+  critic_warmup: 30
+  bc: {expert: LLF, epochs: 200}
+  scheme: uniform          # projection scheme (E5: priority)
+  train_reports:
+    - {mode: M0}
+train:
+  n_updates: 1500
+  eval_every: 20

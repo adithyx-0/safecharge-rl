@@ -1,0 +1,56 @@
+# E4: randomised report mixture AND curtail-at-declared-departure.
+agent:
+  bc:
+    epochs: 200
+    expert: LLF
+  clip: 0.2
+  critic_warmup: 30
+  dual_clip:
+  - -1
+  - 1
+  dual_lr: 0.05
+  ent_coef: 0.001
+  epochs: 10
+  gae_lambda: 0.97
+  gamma: 0.999
+  hid: 64
+  j_ema: 0.7
+  lam_max: 10.0
+  lr: 0.0003
+  lr_final: 0.1
+  minibatch: 256
+  n_envs: 48
+  pool: mean
+  scheme: uniform
+  target_kl: 0.02
+  train_reports:
+  - mode: M0
+    weight: 1
+  - mode: M2
+    w: 1.0
+    weight: 1
+  - mode: M2
+    w: 2.0
+    weight: 1
+  - mode: M3
+    w: 2.0
+    q: 0.5
+    weight: 1
+  - mode: M4
+    rho: 0.25
+    s: 1.0
+    weight: 1
+  - mode: M4
+    rho: 0.5
+    s: 2.0
+    weight: 1
+  - mode: M1r
+    weight: 2
+  use_count: true
+  curtail: true
+base: configs/base.yaml
+derived: configs/derived_caltech_kappa0.2.yaml
+name: e4_random_curtail
+train:
+  eval_every: 20
+  n_updates: 1500

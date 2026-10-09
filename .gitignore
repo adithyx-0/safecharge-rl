@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.env
+data/
+results/runs/
+*.pt
+.DS_Store

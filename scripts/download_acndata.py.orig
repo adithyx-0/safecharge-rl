@@ -1,0 +1,111 @@
+"""Download all ACN-Data sessions for Caltech and JPL to data/raw/.
+
+- Token is read from the ACN_TOKEN environment variable (never hard-code it).
+- Uses Bearer auth. (acnportal's DataClient.get_sessions uses HTTP Basic auth,
+  which returned 401 for our token, so we call the REST API directly.)
+- Retries transient 5xx / network errors with exponential backoff.
+- Saves a checkpoint on failure; re-running resumes from the failed page.
+
+Usage:
+    export ACN_TOKEN=...          # from https://ev.caltech.edu/register
+    python scripts/download_acndata.py
+"""
+import json
+import os
+import sys
+import time
+
+import requests
+
+BASE = os.environ.get("ACN_BASE_URL", "https://ev.caltech.edu/api/v1/")
+OUT_DIR = os.environ.get("ACN_OUT_DIR", "data/raw")
+SITES = ("caltech", "jpl")
+MAX_RETRIES = 6
+PAGE_DELAY = 0.4  # seconds between pages, to stay under the rate limit
+
+
+def get_with_retry(url, headers):
+    """Return a 200 response, or None if we should stop (4xx or retries exhausted)."""
+    for attempt in range(MAX_RETRIES):
+        try:
+            r = requests.get(url, headers=headers, timeout=30)
+        except requests.exceptions.RequestException as e:
+            print(f"  network error ({e}), retry {attempt + 1}/{MAX_RETRIES}")
+            time.sleep(2 ** attempt)
+            continue
+        if r.status_code == 200:
+            return r
+        if 500 <= r.status_code < 600:
+            wait = 2 ** attempt
+            print(f"  HTTP {r.status_code} (server side), retry {attempt + 1}/{MAX_RETRIES} in {wait}s")
+            time.sleep(wait)
+            continue
+        print(f"  HTTP {r.status_code} (client error, not retrying): {r.text[:300]}")
+        return None
+    print(f"  giving up after {MAX_RETRIES} retries")
+    return None
+
+
+def download_site(site, headers):
+    out_path = os.path.join(OUT_DIR, f"{site}_sessions.json")
+    progress_path = os.path.join(OUT_DIR, f"{site}_progress.json")
+
+    if os.path.exists(out_path):
+        print(f"{site}: {out_path} already exists, skipping (delete it to re-download).")
+        return True
+
+    if os.path.exists(progress_path):
+        with open(progress_path) as f:
+            state = json.load(f)
+        sessions, url, page = state["sessions"], state["next_url"], state["page"]
+        print(f"{site}: resuming at page {page} with {len(sessions)} sessions already collected.")
+    else:
+        sessions, url, page = [], BASE + f"sessions/{site}?max_results=100", 0
+
+    def save_progress():
+        with open(progress_path, "w") as f:
+            json.dump({"sessions": sessions, "next_url": url, "page": page}, f)
+
+    while url:
+        r = get_with_retry(url, headers)
+        if r is None:
+            save_progress()
+            print(f"{site}: stopped at page {page} with {len(sessions)} sessions. Re-run to resume.")
+            return False
+        payload = r.json()
+        if "_items" not in payload:
+            print(f"{site}: no '_items' on page {page}: {str(payload)[:300]}")
+            save_progress()
+            return False
+        sessions.extend(payload["_items"])
+        page += 1
+        if page % 20 == 0:
+            print(f"{site}: {len(sessions)} sessions ({page} pages)")
+        next_href = payload.get("_links", {}).get("next", {}).get("href")
+        url = BASE + next_href if next_href else None
+        time.sleep(PAGE_DELAY)
+
+    with open(out_path, "w") as f:
+        json.dump(sessions, f)
+    if os.path.exists(progress_path):
+        os.remove(progress_path)
+    print(f"{site}: COMPLETE, {len(sessions)} sessions -> {out_path}")
+    return True
+
+
+def main():
+    token = os.environ.get("ACN_TOKEN")
+    if not token:
+        sys.exit("Set the ACN_TOKEN environment variable first.")
+    headers = {"Authorization": f"Bearer {token}"}
+    os.makedirs(OUT_DIR, exist_ok=True)
+    results = {site: download_site(site, headers) for site in SITES}
+    print("\nSummary:")
+    for site, ok in results.items():
+        print(f"  {site}: {'complete' if ok else 'INCOMPLETE - re-run to resume'}")
+    print("Expected totals (as of Sep 2026): caltech 31424, jpl 33638. Check the counts above.")
+    sys.exit(0 if all(results.values()) else 1)
+
+
+if __name__ == "__main__":
+    main()

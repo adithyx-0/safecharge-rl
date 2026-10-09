@@ -1,0 +1,12 @@
+# No version pins on purpose; pin after the first working run with `pip freeze > requirements.lock`.
+numpy
+pandas
+scipy
+torch
+gymnasium
+matplotlib
+pyyaml
+pytest
+requests
+acnportal      # only for static reference data (tariff JSON, site definitions)
+cvxpy          # optional: cross-checking the projection and the LP
