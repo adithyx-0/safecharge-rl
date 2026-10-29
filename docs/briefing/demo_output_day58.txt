@@ -1,0 +1,16 @@
+
+Day 2020-01-23: 39 vehicles, grid cap 34.6 kW
+
+         method  cost_per_kwh  unmet_share  high_power_ratio  grid_viol  peak_power
+           FCFS        0.1504       0.0239            0.7366          0       34.61
+            EDF        0.1530       0.0000            0.7473          0       34.61
+            LLF        0.1530       0.0000            0.7368          0       34.61
+            MPC        0.1388       0.0000            0.7676          0       34.61
+         PPOLag        0.1556       0.0038            0.1211          0       34.61
+OPT (hindsight)        0.1245       0.0000            0.7473          0       34.61
+
+Paired replay: 3 vehicles with stays >= 2 h each report 1 h EARLIER (others truthful). Extra energy received (% of own request):
+  EDF     +0.00%  +0.00%  +0.00%
+  LLF     -0.00%  +0.00%  +0.00%
+  PPOLag  +0.02%  +0.22%  +0.01%
+saved results/demo_day.png
